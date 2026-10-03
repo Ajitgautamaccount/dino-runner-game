@@ -293,6 +293,10 @@ canvas {
   text-transform: uppercase;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)) drop-shadow(0 0 8px rgba(255,200,50,0.4));
 }
+@media (max-width: 1239px) {
+  body { justify-content: flex-start; height: auto; min-height: 100vh; }
+  .game-wrapper { transform-origin: top left; margin: 0; }
+}
 </style>
 </head>
 <body>
@@ -2163,10 +2167,16 @@ function scaleGame() {
   const fw = 1240, fh = 780;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const scale = Math.min(vw / fw, vh / fh);
+  if (vw >= fw) {
+    gameWrapper.style.transform = '';
+    gameWrapper.style.marginLeft = '';
+    document.body.style.height = '100vh';
+    return;
+  }
+  var scale = vw / fw;
   gameWrapper.style.transform = 'scale(' + scale + ')';
-  document.body.style.height = (fh * scale) + 'px';
-  document.body.style.overflow = 'hidden';
+  gameWrapper.style.marginLeft = '0';
+  document.body.style.height = Math.ceil(fh * scale) + 'px';
 }
 window.addEventListener('resize', scaleGame);
 window.addEventListener('orientationchange', () => setTimeout(scaleGame, 100));

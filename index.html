@@ -2161,11 +2161,12 @@ canvas.addEventListener('touchstart', e => {
 const gameWrapper = document.getElementById('gameWrapper');
 function scaleGame() {
   const fw = 1240, fh = 780;
-  const sx = window.innerWidth / fw;
-  const sy = window.innerHeight / fh;
-  const scale = Math.min(sx, sy, 1);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const scale = Math.min(vw / fw, vh / fh);
   gameWrapper.style.transform = 'scale(' + scale + ')';
-  gameWrapper.style.marginTop = (scale < 1 ? '0' : '') + 'px';
+  document.body.style.height = (fh * scale) + 'px';
+  document.body.style.overflow = 'hidden';
 }
 window.addEventListener('resize', scaleGame);
 window.addEventListener('orientationchange', () => setTimeout(scaleGame, 100));

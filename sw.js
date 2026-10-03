@@ -1,8 +1,10 @@
-const CACHE = 'dino-runner-v4';
+const CACHE = 'dino-runner-v5';
 const ASSETS = [
   '/dino-runner-game/',
   '/dino-runner-game/index.html',
+  '/dino-runner-game/mobile.html',
   '/dino-runner-game/manifest.json',
+  '/dino-runner-game/manifest-mobile.json',
   '/dino-runner-game/icon-192.svg',
   '/dino-runner-game/icon-512.svg',
   '/dino-runner-game/icon-maskable-192.svg',

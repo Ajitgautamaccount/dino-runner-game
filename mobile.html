@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest-mobile.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<title>Dino Runner - Evanshi</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: #000;
+  width: 100%; height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  font-family: 'Courier New', monospace;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#gameCanvas {
+  display: block;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
+}
+.hud {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 10;
+  pointer-events: none;
+  padding: max(env(safe-area-inset-top, 8px), 8px) max(env(safe-area-inset-right, 12px), 12px) 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.hud-left { pointer-events: auto; display: flex; align-items: center; gap: 8px; }
+.hud-right { text-align: right; }
+.hud-btn {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #eee;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+  line-height: 1;
+  pointer-events: auto;
+}
+.hud-btn:active { background: rgba(255,255,255,0.15); }
+.vol-display {
+  color: #eee;
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+  min-width: 20px;
+  text-align: center;
+}
+.score-text {
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 20px;
+  letter-spacing: 2px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+}
+.hi-text { margin-right: 16px; }
+.lives-row { display: flex; gap: 4px; font-size: 18px; justify-content: flex-end; margin-top: 2px; }
+.heart { color: #ff4444; text-shadow: 0 0 6px rgba(255,50,50,0.6); transition: opacity 0.3s; }
+.heart.lost { opacity: 0.2; }
+.checkpoint-row { font-size: 12px; color: #66ff66; letter-spacing: 1px; text-shadow: 0 0 6px rgba(100,255,100,0.5); text-align: right; margin-top: 2px; }
+.timer-row { font-size: 13px; color: #ffcc44; letter-spacing: 1px; text-shadow: 0 0 6px rgba(255,200,50,0.5); text-align: right; margin-top: 2px; }
+.timer-row.warning { color: #ff4444; animation: timerBlink 0.8s infinite; }
+@keyframes timerBlink { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+.char-picker-overlay {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 20;
+  background: rgba(0,0,0,0.7);
+  padding: 8px max(env(safe-area-inset-left, 8px), 8px) max(env(safe-area-inset-bottom, 8px), 8px);
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.char-picker-overlay.hidden { display: none; }
+.char-btn {
+  padding: 7px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  border: 2px solid #535353;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.9);
+  color: #535353;
+  transition: all 0.15s;
+}
+.char-btn.active { color: #fff; }
+.char-btn[data-char="trex"].active { background: #2E7D32; border-color: #2E7D32; }
+.char-btn[data-char="bluey"].active { background: #5B98D0; border-color: #5B98D0; }
+.char-btn[data-char="peppa"].active { background: #E24060; border-color: #E24060; }
+.char-btn[data-char="nb2"].active { background: #F5A623; border-color: #F5A623; }
+.char-btn[data-char="snake"].active { background: #4CAF50; border-color: #4CAF50; }
+.char-btn[data-char="mario"].active { background: #E53935; border-color: #E53935; }
+.char-btn[data-char="spidey"].active { background: #D32F2F; border-color: #D32F2F; }
+.char-btn[data-char="nb21"].active { background: #222; border-color: #222; }
+
+.password-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 50;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+.password-overlay.show { display: flex; }
+.password-overlay h3 {
+  color: #ffcc44;
+  font-family: 'Courier New', monospace;
+  font-size: 22px;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+}
+.password-overlay .pw-sub {
+  color: #aaa;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+.password-overlay input {
+  padding: 10px 16px;
+  font-size: 18px;
+  font-family: 'Courier New', monospace;
+  border: 2px solid #555;
+  border-radius: 8px;
+  background: #222;
+  color: #fff;
+  text-align: center;
+  width: 220px;
+  outline: none;
+}
+.password-overlay input:focus { border-color: #ffcc44; }
+.password-overlay .pw-btn {
+  margin-top: 12px;
+  padding: 8px 28px;
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  background: #ffcc44;
+  color: #111;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.password-overlay .pw-btn:hover { background: #ffd866; }
+.password-overlay .pw-error {
+  color: #ff4444;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  margin-top: 10px;
+  min-height: 20px;
+}
+
+.install-banner {
+  display: none;
+  position: fixed;
+  bottom: 60px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: #ffcc44;
+  color: #111;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 10px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
+.install-banner .close-banner {
+  margin-left: 12px;
+  font-size: 18px;
+  cursor: pointer;
+  color: #666;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div class="hud">
+  <div class="hud-left">
+    <button class="hud-btn" id="soundToggle" title="Sound">🔇</button>
+    <button class="hud-btn" id="volDown">−</button>
+    <span class="vol-display" id="volDisplay">5</span>
+    <button class="hud-btn" id="volUp">+</button>
+  </div>
+  <div class="hud-right">
+    <div>
+      <span class="score-text hi-text" id="hi"></span>
+      <span class="score-text" id="score">00000</span>
+    </div>
+    <div class="lives-row" id="livesRow">
+      <span class="heart" id="heart1">&#10084;</span>
+      <span class="heart" id="heart2">&#10084;</span>
+      <span class="heart" id="heart3">&#10084;</span>
+    </div>
+    <div class="checkpoint-row" id="checkpointRow"></div>
+    <div class="timer-row" id="timerRow">&#9201; 10:00</div>
+  </div>
+</div>
+
+<div class="char-picker-overlay" id="charPicker">
+  <button class="char-btn" data-char="trex">T-Rex</button>
+  <button class="char-btn" data-char="bluey">Bluey</button>
+  <button class="char-btn active" data-char="peppa">Peppa</button>
+  <button class="char-btn" data-char="nb2">Two</button>
+  <button class="char-btn" data-char="snake">Snake</button>
+  <button class="char-btn" data-char="mario">Mario</button>
+  <button class="char-btn" data-char="spidey">Spidey</button>
+  <button class="char-btn" data-char="nb21">21</button>
+</div>
+
+<div class="password-overlay" id="passwordModal">
+  <h3>&#128274; Time's Up!</h3>
+  <div class="pw-sub">Enter password to continue playing</div>
+  <input type="password" id="pwInput" placeholder="Password" autocomplete="off">
+  <button class="pw-btn" id="pwSubmit">Unlock</button>
+  <div class="pw-error" id="pwError"></div>
+</div>
+
+<div class="install-banner" id="installBanner">
+  Install Dino Runner <span class="close-banner" id="closeBanner">&times;</span>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const BASE_W = 1170, BASE_H = 546;
+canvas.width = BASE_W;
+canvas.height = BASE_H;
+
+const W = BASE_W, H = BASE_H;
+const ROAD_TOP = H - 90;
+const GROUND_Y = ROAD_TOP + 34;
+const CAR_GROUND = ROAD_TOP + 56;
+const GRAVITY = 0.78;
+const JUMP_FORCE = -18;
+const INITIAL_SPEED = 4.5;
+const CHECKPOINT_INTERVAL = 500;
+const PLAY_TIME = 10 * 60;
+const BIOME_CHANGE = 1000;
+
+let gameState = 'idle';
+let speed = INITIAL_SPEED;
+let score = 0;
+let highScore = parseInt(localStorage.getItem('dino_hi') || '0');
+let frameCount = 0;
+let nightMode = false;
+let dino = { x: 80, y: 0, w: 0, h: 0, vy: 0, onGround: true, legFrame: 0 };
+let obstacles = [];
+let clouds = [];
+let groundOffset = 0;
+let bgTrees = [];
+let spaceHeld = false;
+let lives = 3;
+let invincible = false;
+let invincibleTimer = 0;
+let checkpoint = 0;
+let currentBiome = 0;
+let biomeFrom = 0;
+let biomeTo = 1;
+let biomeBlend = 0;
+let biomeTransitioning = false;
+let timerLocked = false;
+let timeRemaining = PLAY_TIME;
+let timerInterval = null;
+
+const BIOMES = [
+  { name: 'Meadow', sky: ['#87CEEB','#a8d8f0','#c8e6f8','#e0f0e8'], mtn1:'#6B8E6B', mtn2:'#7DA67D', grass:'#4CAF50', grassB:'#388E3C', road:['#666','#777','#666'], sidewalk:['#bbb','#999'], cloud:'rgba(255,255,255,0.85)', cloudH:'rgba(255,255,255,0.95)', tree1:'#4CAF50', tree2:'#388E3C', trunk:'#795548' },
+  { name: 'Desert', sky: ['#f4a460','#f4c088','#ffe4b5','#fff8dc'], mtn1:'#c4a265', mtn2:'#d4b87a', grass:'#c2b280', grassB:'#a89060', road:['#a08060','#b09070','#a08060'], sidewalk:['#d4c4a8','#bba880'], cloud:'rgba(255,248,220,0.7)', cloudH:'rgba(255,255,255,0.8)', tree1:'#8FBC4F', tree2:'#6B8F3F', trunk:'#8B7355' },
+  { name: 'Snow', sky: ['#b0c4de','#c8d8e8','#dce8f0','#eef2f6'], mtn1:'#d0dce8', mtn2:'#e0e8f0', grass:'#e8eef4', grassB:'#d0d8e0', road:['#889098','#98a0a8','#889098'], sidewalk:['#d8dce0','#c0c8d0'], cloud:'rgba(220,230,240,0.9)', cloudH:'rgba(240,245,250,0.95)', tree1:'#5B8F5B', tree2:'#4A7A4A', trunk:'#6B5B4B' },
+  { name: 'Sunset', sky: ['#ff6b35','#ff8c55','#ffb088','#ffd4b8'], mtn1:'#8B5E3C', mtn2:'#A0704E', grass:'#6B8B3A', grassB:'#4A6B2A', road:['#554040','#665050','#554040'], sidewalk:['#a08878','#887060'], cloud:'rgba(255,180,140,0.75)', cloudH:'rgba(255,200,170,0.85)', tree1:'#7BA03A', tree2:'#5A8020', trunk:'#6B4830' },
+  { name: 'Ocean', sky: ['#006994','#2090b0','#40b0d0','#80d0e8'], mtn1:'#1a6b5a', mtn2:'#2a8b70', grass:'#3a9070', grassB:'#2a7058', road:['#4a6870','#5a7880','#4a6870'], sidewalk:['#7aaa98','#609880'], cloud:'rgba(200,235,245,0.8)', cloudH:'rgba(220,245,255,0.9)', tree1:'#3a9858', tree2:'#2a7840', trunk:'#5a6050' },
+  { name: 'Autumn', sky: ['#d4a574','#ddb896','#e8ccb0','#f0dcc8'], mtn1:'#a07850', mtn2:'#b08860', grass:'#b8860b', grassB:'#8b6508', road:['#6a5545','#7a6555','#6a5545'], sidewalk:['#c0a888','#a89070'], cloud:'rgba(240,220,200,0.8)', cloudH:'rgba(250,235,220,0.9)', tree1:'#d4690a', tree2:'#c05010', trunk:'#6B4226' }
+];
+
+function lerpColor(a, b, t) {
+  const ah = a.replace('#',''), bh = b.replace('#','');
+  const ar = parseInt(ah.substring(0,2),16), ag = parseInt(ah.substring(2,4),16), ab = parseInt(ah.substring(4,6),16);
+  const br = parseInt(bh.substring(0,2),16), bg = parseInt(bh.substring(2,4),16), bb = parseInt(bh.substring(4,6),16);
+  const rr = Math.round(ar + (br - ar) * t), rg = Math.round(ag + (bg - ag) * t), rb = Math.round(ab + (bb - ab) * t);
+  return '#' + ((1 << 24) + (rr << 16) + (rg << 8) + rb).toString(16).slice(1);
+}
+function lerpRGBA(a, b, t) {
+  const pa = a.match(/[\d.]+/g).map(Number), pb = b.match(/[\d.]+/g).map(Number);
+  const r = Math.round(pa[0]+(pb[0]-pa[0])*t), g = Math.round(pa[1]+(pb[1]-pa[1])*t);
+  const bl = Math.round(pa[2]+(pb[2]-pa[2])*t), al = (pa[3]+(pb[3]-pa[3])*t).toFixed(2);
+  return 'rgba('+r+','+g+','+bl+','+al+')';
+}
+function getBiomeColor(prop, blend) {
+  const from = BIOMES[biomeFrom][prop], to = BIOMES[biomeTo][prop];
+  if (!biomeTransitioning || blend <= 0) return from;
+  return from.startsWith('rgba') ? lerpRGBA(from, to, blend) : lerpColor(from, to, blend);
+}
+function getBiomeArr(prop, blend) {
+  const from = BIOMES[biomeFrom][prop], to = BIOMES[biomeTo][prop];
+  if (!biomeTransitioning || blend <= 0) return from;
+  return from.map((c, i) => c.startsWith('rgba') ? lerpRGBA(c, to[i], blend) : lerpColor(c, to[i], blend));
+}
+
+const CHAR_SIZES = {
+  trex: { w: 86, h: 101 },
+  bluey: { w: 74, h: 101 },
+  peppa: { w: 82, h: 90 },
+  nb2: { w: 59, h: 101 },
+  snake: { w: 109, h: 51 },
+  mario: { w: 62, h: 94 },
+  spidey: { w: 66, h: 98 },
+  nb21: { w: 70, h: 101 }
+};
+
+const CAR_COLORS = ['#E53935','#1E88E5','#FDD835','#43A047','#8E24AA','#FF6F00','#00ACC1','#F06292'];
+
+let currentChar = localStorage.getItem('dino_char') || 'trex';
+
+const charBtns = document.querySelectorAll('.char-btn');
+charBtns.forEach(btn => {
+  if (btn.dataset.char === currentChar) {
+    charBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  btn.addEventListener('click', () => {
+    charBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentChar = btn.dataset.char;
+    localStorage.setItem('dino_char', currentChar);
+    if (gameState === 'idle') {
+      const sz = CHAR_SIZES[currentChar];
+      dino = { x: 80, y: GROUND_Y - sz.h, w: sz.w, h: sz.h, vy: 0, onGround: true, legFrame: 0 };
+      draw();
+    }
+  });
+});
+
+// Timer & Password
+const pwInput = document.getElementById('pwInput');
+const pwSubmit = document.getElementById('pwSubmit');
+const pwError = document.getElementById('pwError');
+const passwordModal = document.getElementById('passwordModal');
+
+function updateTimerDisplay() {
+  const m = Math.floor(timeRemaining / 60);
+  const s = timeRemaining % 60;
+  const row = document.getElementById('timerRow');
+  row.textContent = '⏱ ' + m + ':' + String(s).padStart(2, '0');
+  if (timeRemaining <= 60) row.classList.add('warning');
+  else row.classList.remove('warning');
+}
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    if (gameState !== 'playing') return;
+    timeRemaining--;
+    updateTimerDisplay();
+    if (timeRemaining <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      timerLocked = true;
+      gameState = 'idle';
+      stopBGM();
+      passwordModal.classList.add('show');
+    }
+  }, 1000);
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+function unlockTV() {
+  const pw = pwInput.value.toLowerCase().trim();
+  if (pw === 'evanshi') {
+    passwordModal.classList.remove('show');
+    pwInput.value = '';
+    pwError.textContent = '';
+    timerLocked = false;
+    timeRemaining = PLAY_TIME;
+    updateTimerDisplay();
+    resetGame();
+    draw();
+  } else {
+    pwError.textContent = 'Wrong password!';
+    pwInput.value = '';
+  }
+}
+pwSubmit.addEventListener('click', unlockTV);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') unlockTV(); });
+
+// Audio
+let audioCtx = null;
+let soundOn = false;
+let volume = 5;
+function getVol() { return (volume / 10) * 0.5; }
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playTone(freq, dur, type, vol) {
+  if (!audioCtx || !soundOn) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type || 'square';
+  o.frequency.value = freq;
+  g.gain.value = vol !== undefined ? vol : getVol();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function playJumpSound() {
+  playTone(400, 0.08, 'square');
+  setTimeout(() => playTone(600, 0.08, 'square'), 50);
+  setTimeout(() => playTone(800, 0.06, 'square'), 100);
+}
+function playScoreSound() {
+  playTone(880, 0.1, 'square');
+  setTimeout(() => playTone(1100, 0.15, 'square'), 80);
+}
+function playGameOverSound() {
+  playTone(400, 0.15, 'square');
+  setTimeout(() => playTone(300, 0.15, 'square'), 120);
+  setTimeout(() => playTone(200, 0.2, 'square'), 240);
+  setTimeout(() => playTone(150, 0.3, 'square'), 400);
+}
+
+const BGM_MELODY = [
+  262,294,330,349,392,392,440,392,349,330,294,262,
+  330,349,392,440,494,494,523,494,440,392,349,330,
+  392,440,494,523,587,587,659,587,523,494,440,392,
+  523,494,440,392,349,330,294,262,294,330,349,392
+];
+let bgmTimeout = null;
+let bgmPlaying = false;
+function startBGM() {
+  if (!audioCtx || !soundOn || bgmPlaying) return;
+  bgmPlaying = true;
+  let idx = 0;
+  function playNext() {
+    if (!bgmPlaying || !soundOn) return;
+    playTone(BGM_MELODY[idx % BGM_MELODY.length], 0.12, 'triangle', getVol() * 0.3);
+    idx++;
+    bgmTimeout = setTimeout(playNext, 200);
+  }
+  playNext();
+}
+function stopBGM() {
+  bgmPlaying = false;
+  if (bgmTimeout) { clearTimeout(bgmTimeout); bgmTimeout = null; }
+}
+function toggleSound() {
+  initAudio();
+  soundOn = !soundOn;
+  document.getElementById('soundToggle').textContent = soundOn ? '🔊' : '🔇';
+  if (!soundOn) stopBGM();
+  else if (gameState === 'playing') startBGM();
+}
+document.getElementById('soundToggle').addEventListener('click', toggleSound);
+document.getElementById('volDown').addEventListener('click', () => {
+  if (volume > 0) volume--;
+  document.getElementById('volDisplay').textContent = volume;
+});
+document.getElementById('volUp').addEventListener('click', () => {
+  if (volume < 10) volume++;
+  document.getElementById('volDisplay').textContent = volume;
+});
+
+function resetGame() {
+  const sz = CHAR_SIZES[currentChar];
+  dino = { x: 80, y: GROUND_Y - sz.h, w: sz.w, h: sz.h, vy: 0, onGround: true, legFrame: 0 };
+  obstacles = [];
+  score = 0;
+  speed = INITIAL_SPEED;
+  frameCount = 0;
+  nightMode = false;
+  groundOffset = 0;
+  lives = 3;
+  invincible = false;
+  invincibleTimer = 0;
+  checkpoint = 0;
+  currentBiome = 0;
+  biomeFrom = 0; biomeTo = 1; biomeBlend = 0; biomeTransitioning = false;
+  clouds = [];
+  bgTrees = [];
+  for (let i = 0; i < 4; i++) clouds.push({ x: 200 + i * 280, y: 30 + Math.random() * 80 });
+  for (let i = 0; i < 3; i++) bgTrees.push({ x: 100 + i * 400, type: Math.floor(Math.random() * 7) });
+  updateLivesDisplay();
+  updateCheckpointDisplay();
+  document.getElementById('score').textContent = '00000';
+}
+
+function updateLivesDisplay() {
+  for (let i = 1; i <= 3; i++) {
+    const h = document.getElementById('heart' + i);
+    if (i <= lives) h.classList.remove('lost');
+    else h.classList.add('lost');
+  }
+}
+function updateCheckpointDisplay() {
+  const r = document.getElementById('checkpointRow');
+  r.textContent = checkpoint > 0 ? ('⚑ ' + String(checkpoint).padStart(5, '0')) : '';
+}
+function playHitSound() {
+  playTone(200, 0.15, 'sawtooth');
+  setTimeout(() => playTone(150, 0.1, 'sawtooth'), 100);
+}
+function playCheckpointSound() {
+  playTone(523, 0.1, 'square');
+  setTimeout(() => playTone(659, 0.1, 'square'), 80);
+  setTimeout(() => playTone(784, 0.15, 'square'), 160);
+}
+function loseLife() {
+  lives--;
+  updateLivesDisplay();
+  playHitSound();
+  if (lives <= 0) { gameOver(); return; }
+  invincible = true;
+  invincibleTimer = 120;
+}
+
+const s = 1.95;
+
+function drawTRex() {
+  const d = dino, x = d.x, y = d.y;
+  ctx.fillStyle = '#2E7D32';
+  ctx.fillRect(x + 28*s, y, 16*s, 12*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 36*s, y + 2*s, 5*s, 5*s);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 38*s, y + 3*s, 3*s, 3*s);
+  ctx.fillStyle = '#2E7D32';
+  ctx.fillRect(x + 20*s, y + 10*s, 22*s, 20*s);
+  ctx.fillStyle = '#388E3C';
+  ctx.fillRect(x + 22*s, y + 12*s, 8*s, 4*s);
+  ctx.fillStyle = '#1B5E20';
+  ctx.fillRect(x + 8*s, y + 18*s, 14*s, 6*s);
+  ctx.fillRect(x + 4*s, y + 22*s, 8*s, 4*s);
+  ctx.fillStyle = '#2E7D32';
+  ctx.fillRect(x + 24*s, y + 28*s, 14*s, 16*s);
+  const legOff = Math.sin(frameCount * 0.2) * 3 * s;
+  ctx.fillStyle = '#2E7D32';
+  ctx.fillRect(x + 24*s, y + 42*s + legOff, 6*s, 10*s);
+  ctx.fillRect(x + 34*s, y + 42*s - legOff, 6*s, 10*s);
+  ctx.fillStyle = '#1B5E20';
+  ctx.fillRect(x + 22*s, y + 50*s + legOff, 10*s, 3*s);
+  ctx.fillRect(x + 32*s, y + 50*s - legOff, 10*s, 3*s);
+  ctx.fillStyle = '#2E7D32';
+  ctx.fillRect(x + 6*s, y + 30*s, 18*s, 12*s);
+  ctx.fillRect(x, y + 32*s, 8*s, 6*s);
+}
+
+function drawBluey() {
+  const d = dino, x = d.x, y = d.y;
+  ctx.fillStyle = '#5B98D0';
+  ctx.fillRect(x + 14*s, y, 18*s, 14*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 24*s, y + 3*s, 6*s, 6*s);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 26*s, y + 4*s, 3*s, 4*s);
+  ctx.fillStyle = '#3B6E9D';
+  ctx.fillRect(x + 28*s, y + 10*s, 10*s, 5*s);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + 30*s, y + 13*s, 6*s, 2*s);
+  ctx.fillStyle = '#5B98D0';
+  ctx.fillRect(x + 10*s, y + 14*s, 24*s, 20*s);
+  ctx.fillStyle = '#7AB5E0';
+  ctx.fillRect(x + 14*s, y + 16*s, 16*s, 10*s);
+  const legOff = Math.sin(frameCount * 0.2) * 3 * s;
+  ctx.fillStyle = '#5B98D0';
+  ctx.fillRect(x + 12*s, y + 34*s + legOff, 8*s, 12*s);
+  ctx.fillRect(x + 24*s, y + 34*s - legOff, 8*s, 12*s);
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(x + 10*s, y + 44*s + legOff, 12*s, 4*s);
+  ctx.fillRect(x + 22*s, y + 44*s - legOff, 12*s, 4*s);
+  ctx.fillStyle = '#5B98D0';
+  ctx.fillRect(x + 2*s, y + 30*s, 10*s, 8*s);
+  ctx.fillRect(x, y + 26*s, 6*s, 6*s);
+}
+
+function drawPeppa() {
+  const d = dino, x = d.x, y = d.y;
+  ctx.fillStyle = '#F8B4C8';
+  ctx.fillRect(x + 18*s, y, 22*s, 16*s);
+  ctx.fillRect(x + 34*s, y - 2*s, 10*s, 6*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 30*s, y + 4*s, 6*s, 6*s);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 32*s, y + 5*s, 3*s, 4*s);
+  ctx.fillStyle = '#E24060';
+  ctx.fillRect(x + 36*s, y + 12*s, 6*s, 3*s);
+  ctx.fillStyle = '#F8B4C8';
+  ctx.fillRect(x + 14*s, y + 14*s, 18*s, 6*s);
+  ctx.fillStyle = '#E24060';
+  ctx.fillRect(x + 10*s, y + 18*s, 24*s, 16*s);
+  ctx.fillStyle = '#F8B4C8';
+  ctx.fillRect(x + 4*s, y + 20*s, 8*s, 10*s);
+  const legOff = Math.sin(frameCount * 0.2) * 3 * s;
+  ctx.fillStyle = '#F8B4C8';
+  ctx.fillRect(x + 12*s, y + 34*s + legOff, 6*s, 10*s);
+  ctx.fillRect(x + 24*s, y + 34*s - legOff, 6*s, 10*s);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x + 10*s, y + 42*s + legOff, 10*s, 4*s);
+  ctx.fillRect(x + 22*s, y + 42*s - legOff, 10*s, 4*s);
+}
+
+function drawNB2() {
+  const d = dino, x = d.x, y = d.y;
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(x + 6*s, y, 18*s, 20*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 16*s, y + 5*s, 7*s, 7*s);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 18*s, y + 6*s, 4*s, 5*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 10*s, y + 14*s, 12*s, 4*s);
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(x + 6*s, y + 20*s, 18*s, 20*s);
+  ctx.fillStyle = '#E8960C';
+  ctx.fillRect(x + 8*s, y + 22*s, 14*s, 4*s);
+  const legOff = Math.sin(frameCount * 0.2) * 3 * s;
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(x + 8*s, y + 40*s + legOff, 6*s, 10*s);
+  ctx.fillRect(x + 16*s, y + 40*s - legOff, 6*s, 10*s);
+  ctx.fillStyle = '#E8960C';
+  ctx.fillRect(x + 6*s, y + 48*s + legOff, 10*s, 4*s);
+  ctx.fillRect(x + 14*s, y + 48*s - legOff, 10*s, 4*s);
+}
+
+function drawSnake() {
+  const d = dino, x = d.x, y = d.y;
+  const wo = Math.sin(frameCount * 0.15) * 3 * s;
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(x + 42*s, y + 2*s, 14*s, 10*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 48*s, y + 3*s, 5*s, 5*s);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 50*s, y + 4*s, 3*s, 3*s);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(x + 54*s, y + 8*s, 6*s, 2*s);
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(x + 30*s, y + 10*s + wo, 16*s, 10*s);
+  ctx.fillStyle = '#388E3C';
+  ctx.fillRect(x + 18*s, y + 8*s - wo, 16*s, 10*s);
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(x + 6*s, y + 12*s + wo, 16*s, 10*s);
+  ctx.fillStyle = '#388E3C';
+  ctx.fillRect(x, y + 16*s, 10*s, 8*s);
+  ctx.fillStyle = '#FDD835';
+  ctx.fillRect(x + 32*s, y + 12*s + wo, 3*s, 3*s);
+  ctx.fillRect(x + 20*s, y + 10*s - wo, 3*s, 3*s);
+  ctx.fillRect(x + 8*s, y + 14*s + wo, 3*s, 3*s);
+}
+
+function drawMario() {
+  const d = dino, x = d.x, y = d.y;
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(x + 6*s, y, 22*s, 6*s);
+  ctx.fillRect(x + 4*s, y + 4*s, 26*s, 6*s);
+  ctx.fillStyle = '#FFCC80';
+  ctx.fillRect(x + 8*s, y + 10*s, 18*s, 12*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 18*s, y + 12*s, 6*s, 6*s);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 20*s, y + 13*s, 3*s, 4*s);
+  ctx.fillStyle = '#8B4513';
+  ctx.fillRect(x + 12*s, y + 18*s, 12*s, 4*s);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(x + 4*s, y + 22*s, 24*s, 12*s);
+  ctx.fillStyle = '#1565C0';
+  ctx.fillRect(x + 6*s, y + 26*s, 20*s, 10*s);
+  ctx.fillStyle = '#FDD835';
+  ctx.fillRect(x + 12*s, y + 28*s, 8*s, 4*s);
+  const legOff = Math.sin(frameCount * 0.2) * 3 * s;
+  ctx.fillStyle = '#1565C0';
+  ctx.fillRect(x + 8*s, y + 36*s + legOff, 7*s, 10*s);
+  ctx.fillRect(x + 18*s, y + 36*s - legOff, 7*s, 10*s);
+  ctx.fillStyle = '#6D4C41';
+  ctx.fillRect(x + 6*s, y + 44*s + legOff, 10*s, 4*s);
+  ctx.fillRect(x + 16*s, y + 44*s - legOff, 10*s, 4*s);
+}
+
+function drawSpidey() {
+  const d = dino, x = d.x, y = d.y;
+  ctx.fillStyle = '#D32F2F';
+  ctx.fillRect(x + 8*s, y, 18*s, 16*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 12*s, y + 4*s, 10*s, 6*s);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 14*s, y + 6*s, 3*s, 3*s);
+  ctx.fillRect(x + 20*s, y + 6*s, 3*s, 3*s);
+  ctx.fillStyle = '#1565C0';
+  ctx.fillRect(x + 6*s, y + 16*s, 22*s, 18*s);
+  ctx.fillStyle = '#D32F2F';
+  ctx.fillRect(x + 10*s, y + 16*s, 14*s, 6*s);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(x + 16*s, y + 14*s, 2*s, 22*s);
+  ctx.fillRect(x + 6*s, y + 24*s, 22*s, 2*s);
+  const legOff = Math.sin(frameCount * 0.2) * 3 * s;
+  ctx.fillStyle = '#1565C0';
+  ctx.fillRect(x + 8*s, y + 34*s + legOff, 7*s, 12*s);
+  ctx.fillRect(x + 20*s, y + 34*s - legOff, 7*s, 12*s);
+  ctx.fillStyle = '#D32F2F';
+  ctx.fillRect(x + 6*s, y + 44*s + legOff, 10*s, 4*s);
+  ctx.fillRect(x + 18*s, y + 44*s - legOff, 10*s, 4*s);
+  ctx.fillStyle = '#D32F2F';
+  ctx.fillRect(x + 2*s, y + 18*s, 6*s, 10*s);
+  ctx.fillRect(x + 26*s, y + 20*s, 8*s, 8*s);
+}
+
+function drawNB21() {
+  const d = dino, x = d.x, y = d.y;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x + 8*s, y, 20*s, 16*s);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 18*s, y + 4*s, 7*s, 7*s);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(x + 20*s, y + 5*s, 4*s, 5*s);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x + 6*s, y + 16*s, 24*s, 20*s);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + 10*s, y + 18*s, 16*s, 6*s);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(x + 14*s, y + 20*s, 8*s, 3*s);
+  const legOff = Math.sin(frameCount * 0.2) * 3 * s;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x + 10*s, y + 36*s + legOff, 7*s, 12*s);
+  ctx.fillRect(x + 20*s, y + 36*s - legOff, 7*s, 12*s);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + 8*s, y + 46*s + legOff, 10*s, 4*s);
+  ctx.fillRect(x + 18*s, y + 46*s - legOff, 10*s, 4*s);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x + 2*s, y + 20*s, 6*s, 10*s);
+  ctx.fillRect(x + 28*s, y + 22*s, 8*s, 8*s);
+}
+
+function drawDino() {
+  dino.legFrame = frameCount;
+  switch (currentChar) {
+    case 'trex': drawTRex(); break;
+    case 'bluey': drawBluey(); break;
+    case 'peppa': drawPeppa(); break;
+    case 'nb2': drawNB2(); break;
+    case 'snake': drawSnake(); break;
+    case 'mario': drawMario(); break;
+    case 'spidey': drawSpidey(); break;
+    case 'nb21': drawNB21(); break;
+  }
+}
+
+// Birds
+const BIRD_TYPES = ['robin','bluejay','parrot','eagle','crow','flamingo'];
+function drawBird(ob) {
+  switch (ob.btype) {
+    case 'robin': drawRobin(ob); break;
+    case 'bluejay': drawBlueJay(ob); break;
+    case 'parrot': drawParrot(ob); break;
+    case 'eagle': drawEagle(ob); break;
+    case 'crow': drawCrow(ob); break;
+    case 'flamingo': drawFlamingo(ob); break;
+  }
+}
+function drawRobin(ob) {
+  const bx = ob.x, by = ob.y, wingY = Math.sin(frameCount * 0.3) * 8;
+  ctx.fillStyle = '#8B4513';
+  ctx.fillRect(bx + 10, by + 10, 30, 16);
+  ctx.fillStyle = '#D2691E';
+  ctx.fillRect(bx + 8, by + 6, 20, 10);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(bx + 12, by + 14, 18, 10);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(bx + 24, by + 8, 4, 4);
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(bx + 28, by + 10, 10, 4);
+  ctx.fillStyle = '#8B4513';
+  ctx.fillRect(bx + 6, by + 2 + wingY, 16, 6);
+  ctx.fillRect(bx + 2, by - 2 + wingY, 10, 6);
+  ctx.fillRect(bx, by + 22, 8, 6);
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(bx + 16, by + 24, 4, 6);
+  ctx.fillRect(bx + 24, by + 24, 4, 6);
+}
+function drawBlueJay(ob) {
+  const bx = ob.x, by = ob.y, wingY = Math.sin(frameCount * 0.3) * 8;
+  ctx.fillStyle = '#1E88E5';
+  ctx.fillRect(bx + 10, by + 10, 30, 14);
+  ctx.fillStyle = '#1565C0';
+  ctx.fillRect(bx + 8, by + 6, 18, 10);
+  ctx.fillRect(bx + 14, by + 2, 8, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(bx + 14, by + 12, 12, 8);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(bx + 22, by + 8, 4, 4);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(bx + 26, by + 10, 12, 3);
+  ctx.fillStyle = '#1E88E5';
+  ctx.fillRect(bx + 4, by + 2 + wingY, 14, 6);
+  ctx.fillRect(bx, by - 2 + wingY, 10, 6);
+  ctx.fillStyle = '#90CAF9';
+  ctx.fillRect(bx + 34, by + 10, 12, 6);
+  ctx.fillRect(bx + 38, by + 8, 10, 4);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(bx + 16, by + 24, 4, 6);
+  ctx.fillRect(bx + 24, by + 24, 4, 6);
+}
+function drawParrot(ob) {
+  const bx = ob.x, by = ob.y, wingY = Math.sin(frameCount * 0.3) * 8;
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(bx + 10, by + 10, 28, 14);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(bx + 8, by + 4, 18, 12);
+  ctx.fillStyle = '#FDD835';
+  ctx.fillRect(bx + 12, by + 14, 16, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(bx + 20, by + 6, 5, 5);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(bx + 22, by + 7, 3, 3);
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(bx + 26, by + 8, 8, 6);
+  ctx.fillRect(bx + 30, by + 12, 4, 4);
+  ctx.fillStyle = '#1E88E5';
+  ctx.fillRect(bx + 4, by + 2 + wingY, 14, 6);
+  ctx.fillRect(bx, by - 2 + wingY, 10, 6);
+  ctx.fillStyle = '#4CAF50';
+  ctx.fillRect(bx + 32, by + 12, 14, 5);
+  ctx.fillRect(bx + 36, by + 10, 12, 4);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(bx + 16, by + 24, 4, 6);
+  ctx.fillRect(bx + 24, by + 24, 4, 6);
+}
+function drawEagle(ob) {
+  const bx = ob.x, by = ob.y, wingY = Math.sin(frameCount * 0.25) * 10;
+  ctx.fillStyle = '#5D4037';
+  ctx.fillRect(bx + 14, by + 12, 34, 16);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(bx + 12, by + 6, 20, 12);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(bx + 24, by + 8, 5, 5);
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(bx + 30, by + 10, 14, 5);
+  ctx.fillRect(bx + 38, by + 13, 6, 4);
+  ctx.fillStyle = '#5D4037';
+  ctx.fillRect(bx + 6, by + 2 + wingY, 18, 8);
+  ctx.fillRect(bx, by - 4 + wingY, 12, 8);
+  ctx.fillStyle = '#3E2723';
+  ctx.fillRect(bx + 40, by + 14, 16, 6);
+  ctx.fillRect(bx + 44, by + 12, 14, 4);
+  ctx.fillStyle = '#F5A623';
+  ctx.fillRect(bx + 20, by + 26, 5, 8);
+  ctx.fillRect(bx + 30, by + 26, 5, 8);
+}
+function drawCrow(ob) {
+  const bx = ob.x, by = ob.y, wingY = Math.sin(frameCount * 0.3) * 8;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(bx + 10, by + 10, 28, 14);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(bx + 8, by + 6, 16, 10);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(bx + 18, by + 7, 4, 4);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(bx + 19, by + 8, 2, 2);
+  ctx.fillStyle = '#444';
+  ctx.fillRect(bx + 24, by + 9, 10, 3);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(bx + 4, by + 2 + wingY, 14, 6);
+  ctx.fillRect(bx, by - 2 + wingY, 10, 6);
+  ctx.fillRect(bx + 32, by + 12, 12, 5);
+  ctx.fillStyle = '#444';
+  ctx.fillRect(bx + 14, by + 24, 4, 6);
+  ctx.fillRect(bx + 22, by + 24, 4, 6);
+}
+function drawFlamingo(ob) {
+  const bx = ob.x, by = ob.y, wingY = Math.sin(frameCount * 0.3) * 8;
+  ctx.fillStyle = '#F06292';
+  ctx.fillRect(bx + 12, by + 10, 26, 12);
+  ctx.fillStyle = '#EC407A';
+  ctx.fillRect(bx + 10, by + 6, 16, 10);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(bx + 20, by + 7, 4, 4);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(bx + 21, by + 8, 2, 2);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(bx + 26, by + 9, 10, 4);
+  ctx.fillRect(bx + 30, by + 12, 6, 3);
+  ctx.fillStyle = '#F48FB1';
+  ctx.fillRect(bx + 6, by + 2 + wingY, 14, 6);
+  ctx.fillRect(bx + 2, by - 2 + wingY, 10, 6);
+  ctx.fillStyle = '#F06292';
+  ctx.fillRect(bx + 20, by + 20, 3, 10);
+  ctx.fillRect(bx + 28, by + 20, 3, 10);
+}
+
+// Vehicles
+const VEHICLE_TYPES = ['car','bus','truck','police','firetruck','firebrigade','ferrari','suv'];
+function drawVehicle(ob) {
+  switch (ob.vtype) {
+    case 'car': drawCar(ob); break;
+    case 'bus': drawBus(ob); break;
+    case 'truck': drawTruck(ob); break;
+    case 'police': drawPoliceCar(ob); break;
+    case 'firetruck': drawFiretruck(ob); break;
+    case 'firebrigade': drawFireBrigade(ob); break;
+    case 'ferrari': drawFerrari(ob); break;
+    case 'suv': drawSUV(ob); break;
+  }
+}
+function drawCar(ob) {
+  const cx = ob.x, cy = ob.y, c = ob.color;
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 4, cy + 10, 56, 22);
+  ctx.fillRect(cx + 14, cy, 32, 14);
+  const gl = ctx.createLinearGradient(cx + 16, cy + 2, cx + 16, cy + 12);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx + 16, cy + 2, 14, 10);
+  ctx.fillRect(cx + 32, cy + 2, 12, 10);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillRect(cx + 16, cy + 2, 14, 3);
+  ctx.fillRect(cx + 32, cy + 2, 12, 3);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 6, cy + 28, 14, 12);
+  ctx.fillRect(cx + 44, cy + 28, 14, 12);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 10, cy + 32, 6, 6);
+  ctx.fillRect(cx + 48, cy + 32, 6, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + 56, cy + 14, 6, 6);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx, cy + 14, 6, 6);
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 54, cy + 8, 6, 4);
+  ctx.fillRect(cx, cy + 8, 6, 4);
+}
+function drawBus(ob) {
+  const cx = ob.x, cy = ob.y, c = ob.color;
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 2, cy, 90, 40);
+  ctx.fillStyle = '#FDD835';
+  ctx.fillRect(cx + 2, cy + 36, 90, 6);
+  const gl = ctx.createLinearGradient(cx + 6, cy + 4, cx + 6, cy + 22);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  for (let i = 0; i < 4; i++) ctx.fillRect(cx + 6 + i * 22, cy + 4, 18, 18);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  for (let i = 0; i < 4; i++) ctx.fillRect(cx + 6 + i * 22, cy + 4, 18, 4);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 6, cy + 40, 16, 14);
+  ctx.fillRect(cx + 72, cy + 40, 16, 14);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 10, cy + 44, 8, 8);
+  ctx.fillRect(cx + 76, cy + 44, 8, 8);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + 88, cy + 6, 6, 8);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx, cy + 6, 4, 8);
+  ctx.fillStyle = '#ddd';
+  ctx.fillRect(cx + 2, cy + 26, 90, 3);
+}
+function drawTruck(ob) {
+  const cx = ob.x, cy = ob.y, c = ob.color;
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx, cy + 6, 52, 30);
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(cx + 2, cy + 8, 48, 4);
+  ctx.fillRect(cx + 2, cy + 16, 48, 4);
+  ctx.fillRect(cx + 2, cy + 24, 48, 4);
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 52, cy, 36, 36);
+  const gl = ctx.createLinearGradient(cx + 56, cy + 4, cx + 56, cy + 18);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx + 56, cy + 4, 28, 14);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillRect(cx + 56, cy + 4, 28, 4);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 8, cy + 34, 14, 14);
+  ctx.fillRect(cx + 62, cy + 34, 14, 14);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 12, cy + 38, 6, 6);
+  ctx.fillRect(cx + 66, cy + 38, 6, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + 84, cy + 8, 6, 6);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx, cy + 30, 4, 6);
+}
+function drawPoliceCar(ob) {
+  const cx = ob.x, cy = ob.y;
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(cx + 4, cy + 10, 56, 22);
+  ctx.fillRect(cx + 14, cy, 32, 14);
+  ctx.fillStyle = '#1565C0';
+  ctx.fillRect(cx + 4, cy + 24, 56, 8);
+  ctx.fillStyle = frameCount % 20 < 10 ? '#E53935' : '#1E88E5';
+  ctx.fillRect(cx + 20, cy - 4, 8, 5);
+  ctx.fillStyle = frameCount % 20 < 10 ? '#1E88E5' : '#E53935';
+  ctx.fillRect(cx + 32, cy - 4, 8, 5);
+  const gl = ctx.createLinearGradient(cx + 16, cy + 2, cx + 16, cy + 12);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx + 16, cy + 2, 14, 10);
+  ctx.fillRect(cx + 32, cy + 2, 12, 10);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 6, cy + 28, 14, 12);
+  ctx.fillRect(cx + 44, cy + 28, 14, 12);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 10, cy + 32, 6, 6);
+  ctx.fillRect(cx + 48, cy + 32, 6, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + 56, cy + 14, 6, 6);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx, cy + 14, 6, 6);
+}
+function drawFiretruck(ob) {
+  const cx = ob.x, cy = ob.y;
+  ctx.fillStyle = '#D32F2F';
+  ctx.fillRect(cx + 4, cy + 8, 76, 28);
+  ctx.fillRect(cx + 54, cy, 26, 12);
+  ctx.fillStyle = '#B71C1C';
+  ctx.fillRect(cx + 8, cy + 10, 44, 4);
+  ctx.fillStyle = '#C0C0C0';
+  ctx.fillRect(cx + 10, cy + 16, 40, 3);
+  ctx.fillStyle = frameCount % 16 < 8 ? '#E53935' : '#fff';
+  ctx.fillRect(cx + 20, cy + 2, 8, 6);
+  ctx.fillStyle = frameCount % 16 < 8 ? '#fff' : '#E53935';
+  ctx.fillRect(cx + 34, cy + 2, 8, 6);
+  const gl = ctx.createLinearGradient(cx + 58, cy + 2, cx + 58, cy + 10);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx + 58, cy + 2, 18, 8);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 8, cy + 34, 14, 12);
+  ctx.fillRect(cx + 60, cy + 34, 14, 12);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 12, cy + 38, 6, 6);
+  ctx.fillRect(cx + 64, cy + 38, 6, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + 76, cy + 12, 6, 6);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx, cy + 12, 6, 6);
+}
+function drawFireBrigade(ob) {
+  const cx = ob.x, cy = ob.y;
+  ctx.fillStyle = '#D32F2F';
+  ctx.fillRect(cx + 2, cy + 4, 88, 36);
+  ctx.fillRect(cx + 60, cy - 2, 28, 10);
+  ctx.fillStyle = '#B71C1C';
+  ctx.fillRect(cx + 6, cy + 8, 52, 4);
+  ctx.fillRect(cx + 6, cy + 16, 52, 4);
+  ctx.fillStyle = '#C0C0C0';
+  ctx.fillRect(cx + 8, cy + 24, 48, 4);
+  ctx.fillRect(cx + 8, cy + 12, 48, 3);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(cx + 28, cy + 30, 16, 6);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 8px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('FIRE', cx + 36, cy + 37);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = frameCount % 14 < 7 ? '#ff0' : '#f00';
+  ctx.fillRect(cx + 24, cy - 4, 8, 6);
+  ctx.fillStyle = frameCount % 14 < 7 ? '#f00' : '#ff0';
+  ctx.fillRect(cx + 40, cy - 4, 8, 6);
+  const gl = ctx.createLinearGradient(cx + 64, cy, cx + 64, cy + 8);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx + 64, cy, 20, 8);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(cx + 64, cy, 20, 2);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 6, cy + 38, 16, 14);
+  ctx.fillRect(cx + 70, cy + 38, 16, 14);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 10, cy + 42, 8, 8);
+  ctx.fillRect(cx + 74, cy + 42, 8, 8);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + 86, cy + 8, 6, 8);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx, cy + 8, 4, 8);
+}
+function drawFerrari(ob) {
+  const cx = ob.x, cy = ob.y, c = ob.color;
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 4, cy + 10, 58, 18);
+  ctx.fillRect(cx + 18, cy + 4, 28, 10);
+  const gl = ctx.createLinearGradient(cx + 20, cy + 4, cx + 20, cy + 12);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx + 20, cy + 5, 12, 7);
+  ctx.fillRect(cx + 34, cy + 5, 10, 7);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillRect(cx + 20, cy + 5, 12, 2);
+  ctx.fillRect(cx + 34, cy + 5, 10, 2);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 6, cy + 26, 12, 10);
+  ctx.fillRect(cx + 48, cy + 26, 12, 10);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 9, cy + 29, 6, 6);
+  ctx.fillRect(cx + 51, cy + 29, 6, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + 58, cy + 12, 6, 5);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx, cy + 12, 5, 5);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(cx + 24, cy + 14, 20, 2);
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 58, cy + 6, 8, 6);
+  ctx.fillRect(cx, cy + 8, 6, 4);
+}
+function drawSUV(ob) {
+  const cx = ob.x, cy = ob.y, c = ob.color;
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 4, cy + 12, 64, 24);
+  ctx.fillRect(cx + 10, cy, 50, 16);
+  const gl = ctx.createLinearGradient(cx + 12, cy, cx + 12, cy + 12);
+  gl.addColorStop(0, '#aadcff');
+  gl.addColorStop(1, '#66b8ee');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx + 12, cy + 2, 16, 11);
+  ctx.fillRect(cx + 32, cy + 2, 14, 11);
+  ctx.fillRect(cx + 50, cy + 2, 6, 11);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillRect(cx + 12, cy + 2, 16, 3);
+  ctx.fillRect(cx + 32, cy + 2, 14, 3);
+  ctx.fillRect(cx + 50, cy + 2, 6, 3);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx + 6, cy + 32, 16, 12);
+  ctx.fillRect(cx + 48, cy + 32, 16, 12);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(cx + 10, cy + 36, 8, 6);
+  ctx.fillRect(cx + 52, cy + 36, 8, 6);
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(cx - 2, cy + 14, 4, 4);
+  ctx.fillRect(cx + 68, cy + 14, 4, 4);
+  ctx.fillStyle = '#FDD835';
+  ctx.fillRect(cx + 67, cy + 12, 5, 10);
+  ctx.fillStyle = '#E53935';
+  ctx.fillRect(cx - 3, cy + 12, 4, 10);
+  ctx.fillStyle = c;
+  ctx.fillRect(cx + 66, cy + 8, 6, 4);
+  ctx.fillRect(cx - 2, cy + 8, 4, 4);
+}
+
+// Trees
+function drawBgTree(t) {
+  const tx = t.x, ty = ROAD_TOP;
+  const bt = biomeBlend;
+  const g1 = nightMode ? '#2E7D32' : getBiomeColor('tree1', bt);
+  const g2 = nightMode ? '#1B5E20' : getBiomeColor('tree2', bt);
+  const tk = nightMode ? '#5D4037' : getBiomeColor('trunk', bt);
+  const tp = t.type;
+  if (tp === 0) {
+    ctx.fillStyle = tk; ctx.fillRect(tx + 10, ty - 60, 10, 60);
+    ctx.fillStyle = g1; ctx.fillRect(tx, ty - 100, 30, 46);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 4, ty - 106, 22, 10);
+  } else if (tp === 1) {
+    ctx.fillStyle = tk; ctx.fillRect(tx + 8, ty - 50, 8, 50);
+    ctx.fillStyle = g1; ctx.fillRect(tx + 2, ty - 80, 20, 36); ctx.fillRect(tx - 2, ty - 68, 28, 20);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 6, ty - 86, 12, 8);
+  } else if (tp === 2) {
+    ctx.fillStyle = tk; ctx.fillRect(tx + 6, ty - 40, 6, 40);
+    ctx.fillStyle = g1; ctx.fillRect(tx, ty - 66, 18, 30);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 4, ty - 70, 12, 8);
+  } else if (tp === 3) {
+    ctx.fillStyle = tk; ctx.fillRect(tx + 12, ty - 75, 8, 75);
+    ctx.fillStyle = g1; ctx.fillRect(tx + 2, ty - 110, 28, 20); ctx.fillRect(tx - 2, ty - 94, 36, 16); ctx.fillRect(tx + 4, ty - 80, 24, 10);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 6, ty - 116, 20, 8); ctx.fillRect(tx + 2, ty - 94, 28, 3);
+  } else if (tp === 4) {
+    ctx.fillStyle = tk; ctx.fillRect(tx + 4, ty - 34, 5, 34);
+    ctx.fillStyle = g1; ctx.fillRect(tx, ty - 50, 14, 20);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 2, ty - 54, 10, 6);
+    ctx.fillStyle = tk; ctx.fillRect(tx + 22, ty - 44, 5, 44);
+    ctx.fillStyle = g1; ctx.fillRect(tx + 16, ty - 62, 16, 22);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 19, ty - 66, 10, 6);
+  } else if (tp === 5) {
+    ctx.fillStyle = tk; ctx.fillRect(tx + 8, ty - 90, 10, 90);
+    ctx.fillStyle = g1; ctx.fillRect(tx + 2, ty - 100, 22, 14); ctx.fillRect(tx - 4, ty - 88, 34, 8); ctx.fillRect(tx + 6, ty - 60, 14, 8); ctx.fillRect(tx - 2, ty - 70, 10, 8); ctx.fillRect(tx + 18, ty - 50, 12, 8);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 6, ty - 104, 14, 6);
+  } else {
+    ctx.fillStyle = tk; ctx.fillRect(tx + 10, ty - 55, 12, 55); ctx.fillRect(tx + 4, ty - 35, 8, 6); ctx.fillRect(tx + 20, ty - 42, 8, 6);
+    ctx.fillStyle = g1; ctx.fillRect(tx - 2, ty - 80, 36, 30);
+    ctx.fillStyle = g2; ctx.fillRect(tx + 2, ty - 86, 28, 10);
+    ctx.fillStyle = g1; ctx.fillRect(tx - 8, ty - 40, 14, 10); ctx.fillRect(tx + 24, ty - 48, 16, 12);
+    ctx.fillStyle = g2; ctx.fillRect(tx - 6, ty - 44, 10, 6); ctx.fillRect(tx + 26, ty - 52, 12, 6);
+  }
+}
+
+function drawSky() {
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, ROAD_TOP);
+  if (nightMode) {
+    skyGrad.addColorStop(0, '#0a0a2e');
+    skyGrad.addColorStop(0.5, '#1a1a4e');
+    skyGrad.addColorStop(1, '#2a2a5e');
+  } else {
+    const sk = getBiomeArr('sky', biomeBlend);
+    skyGrad.addColorStop(0, sk[0]);
+    skyGrad.addColorStop(0.4, sk[1]);
+    skyGrad.addColorStop(0.8, sk[2]);
+    skyGrad.addColorStop(1, sk[3]);
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, ROAD_TOP + 10);
+}
+
+function drawMountains() {
+  const gy = ROAD_TOP;
+  ctx.fillStyle = nightMode ? '#1a2040' : getBiomeColor('mtn1', biomeBlend);
+  ctx.beginPath();
+  ctx.moveTo(0, gy);
+  const mOff = (groundOffset * 0.08) % W;
+  for (let i = -100; i <= W + 200; i += 3) {
+    const h = Math.sin((i + mOff) * 0.006) * 50 + Math.sin((i + mOff) * 0.015) * 25 + Math.sin((i + mOff) * 0.003) * 35;
+    ctx.lineTo(i, gy - 60 - h);
+  }
+  ctx.lineTo(W + 200, gy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = nightMode ? '#252850' : getBiomeColor('mtn2', biomeBlend);
+  ctx.beginPath();
+  ctx.moveTo(0, gy);
+  const m2Off = (groundOffset * 0.15) % W;
+  for (let i = -100; i <= W + 200; i += 3) {
+    const h = Math.sin((i + m2Off) * 0.01) * 30 + Math.sin((i + m2Off) * 0.025) * 15;
+    ctx.lineTo(i, gy - 20 - h);
+  }
+  ctx.lineTo(W + 200, gy);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGround() {
+  const gy = ROAD_TOP, roadH = 80, bt = biomeBlend;
+  ctx.fillStyle = nightMode ? '#1a3a1a' : getBiomeColor('grass', bt);
+  ctx.fillRect(0, gy - 8, W, roadH + 20);
+  const sw = getBiomeArr('sidewalk', bt);
+  const sidewalkGrad = ctx.createLinearGradient(0, gy - 4, 0, gy + 6);
+  sidewalkGrad.addColorStop(0, nightMode ? '#666' : sw[0]);
+  sidewalkGrad.addColorStop(1, nightMode ? '#444' : sw[1]);
+  ctx.fillStyle = sidewalkGrad;
+  ctx.fillRect(0, gy - 4, W, 10);
+  const rd = getBiomeArr('road', bt);
+  const roadGrad = ctx.createLinearGradient(0, gy + 6, 0, gy + roadH - 6);
+  roadGrad.addColorStop(0, nightMode ? '#2a2a2a' : rd[0]);
+  roadGrad.addColorStop(0.5, nightMode ? '#333' : rd[1]);
+  roadGrad.addColorStop(1, nightMode ? '#2a2a2a' : rd[2]);
+  ctx.fillStyle = roadGrad;
+  ctx.fillRect(0, gy + 6, W, roadH - 12);
+  ctx.fillStyle = nightMode ? '#666' : sw[0];
+  ctx.fillRect(0, gy + roadH - 6, W, 6);
+  ctx.fillStyle = nightMode ? '#888' : '#eee';
+  ctx.fillRect(0, gy + 5, W, 2);
+  ctx.fillRect(0, gy + roadH - 7, W, 2);
+  ctx.fillStyle = nightMode ? '#cc0' : '#FFD700';
+  for (let i = 0; i < W + 100; i += 100) {
+    const dx = ((i - groundOffset % 100) + W + 100) % (W + 100) - 50;
+    ctx.fillRect(dx, gy + roadH / 2 - 1, 50, 4);
+  }
+  ctx.fillStyle = nightMode ? '#555' : '#888';
+  for (let i = 0; i < W + 40; i += 40) {
+    const px = ((i - (groundOffset * 0.5) % 40) + W + 40) % (W + 40) - 20;
+    ctx.fillRect(px, gy + 10, 3, 2);
+    ctx.fillRect(px + 20, gy + roadH - 14, 4, 2);
+  }
+  ctx.fillStyle = nightMode ? '#1a3a1a' : getBiomeColor('grassB', bt);
+  ctx.fillRect(0, gy + roadH, W, H - gy - roadH);
+}
+
+function drawClouds() {
+  const bt = biomeBlend;
+  clouds.forEach(c => {
+    ctx.fillStyle = nightMode ? 'rgba(100,100,140,0.4)' : getBiomeColor('cloud', bt);
+    ctx.fillRect(c.x - 4, c.y + 4, 66, 20);
+    ctx.fillRect(c.x + 8, c.y - 4, 44, 12);
+    ctx.fillRect(c.x + 4, c.y + 20, 28, 8);
+    ctx.fillStyle = nightMode ? 'rgba(120,120,160,0.5)' : getBiomeColor('cloudH', bt);
+    ctx.fillRect(c.x, c.y, 58, 16);
+    ctx.fillRect(c.x + 12, c.y - 8, 36, 8);
+    ctx.fillRect(c.x + 8, c.y + 16, 20, 8);
+  });
+}
+
+function spawnObstacle() {
+  const last = obstacles[obstacles.length - 1];
+  if (last && (W + 20) - last.x < 500) return;
+  const r = Math.random();
+  let ob;
+  const birdHeights = [GROUND_Y - 30, GROUND_Y - 55, GROUND_Y - 80];
+  if (r < 0.35) {
+    const birdY = birdHeights[Math.floor(Math.random() * 3)];
+    const btype = BIRD_TYPES[Math.floor(Math.random() * BIRD_TYPES.length)];
+    const bw = btype === 'eagle' ? 58 : 52;
+    const bh = btype === 'eagle' ? 32 : 28;
+    ob = { x: W + 20, y: birdY, w: bw, h: bh, type: 'bird', btype: btype };
+  } else {
+    const vt = VEHICLE_TYPES[Math.floor(Math.random() * VEHICLE_TYPES.length)];
+    const carColor = CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)];
+    let vw = 65, vh = 42;
+    if (vt === 'bus') { vw = 95; vh = 56; }
+    else if (vt === 'truck') { vw = 90; vh = 50; }
+    else if (vt === 'firetruck') { vw = 85; vh = 48; }
+    else if (vt === 'firebrigade') { vw = 92; vh = 54; }
+    else if (vt === 'ferrari') { vw = 68; vh = 38; }
+    else if (vt === 'suv') { vw = 72; vh = 46; }
+    else if (vt === 'police') { vw = 65; vh = 42; }
+    ob = { x: W + 20, y: CAR_GROUND - vh + 6, w: vw, h: vh, type: 'car', color: carColor, vtype: vt };
+  }
+  obstacles.push(ob);
+}
+
+function checkCollision(ob) {
+  const d = dino;
+  const dx = d.x + 14, dy = d.y + 14, dw = d.w - 24, dh = d.h - 6;
+  const isBird = ob.type === 'bird';
+  const mx = isBird ? 6 : 8, my = isBird ? 6 : 10;
+  const ox = ob.x + mx, oy = ob.y + my;
+  const ow = ob.w - mx * 2, oh = ob.h - my * 2;
+  return dx < ox + ow && dx + dw > ox && dy < oy + oh && dy + dh > oy;
+}
+
+function updateScore() {
+  score++;
+  const displayScore = Math.floor(score / 2);
+  const sv = String(displayScore).padStart(5, '0');
+  document.getElementById('score').textContent = sv;
+  if (highScore > 0) document.getElementById('hi').textContent = 'HI ' + String(highScore).padStart(5, '0');
+  if (score > 0 && score % 200 === 0) playScoreSound();
+  if (score > 0 && score % 1000 === 0) nightMode = !nightMode;
+  const biomeIndex = Math.floor(displayScore / BIOME_CHANGE) % BIOMES.length;
+  const biomeProgress = (displayScore % BIOME_CHANGE) / BIOME_CHANGE;
+  if (biomeIndex !== currentBiome) currentBiome = biomeIndex;
+  biomeFrom = currentBiome;
+  biomeTo = (currentBiome + 1) % BIOMES.length;
+  if (biomeProgress > 0.8) {
+    biomeTransitioning = true;
+    biomeBlend = (biomeProgress - 0.8) / 0.2;
+  } else {
+    biomeTransitioning = false;
+    biomeBlend = 0;
+  }
+  const newCheckpoint = Math.floor(displayScore / CHECKPOINT_INTERVAL) * CHECKPOINT_INTERVAL;
+  if (newCheckpoint > checkpoint) {
+    checkpoint = newCheckpoint;
+    updateCheckpointDisplay();
+    playCheckpointSound();
+  }
+}
+
+function gameOver() {
+  gameState = 'over';
+  stopBGM();
+  playGameOverSound();
+  const finalScore = Math.floor(score / 2);
+  if (finalScore > highScore) {
+    highScore = finalScore;
+    localStorage.setItem('dino_hi', String(highScore));
+  }
+  document.getElementById('hi').textContent = 'HI ' + String(highScore).padStart(5, '0');
+  lives = 0;
+  updateLivesDisplay();
+}
+
+function drawGameOverScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 52px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('G A M E   O V E R', W / 2, 130);
+  ctx.fillStyle = '#fff';
+  ctx.font = '26px Courier New';
+  ctx.fillText('Score: ' + String(Math.floor(score / 2)).padStart(5, '0'), W / 2, 180);
+  ctx.fillStyle = '#66ff66';
+  ctx.font = 'bold 36px Courier New';
+  ctx.fillText('Try Again Evanshi!', W / 2, 230);
+  if (checkpoint > 0) {
+    ctx.fillStyle = '#aaffaa';
+    ctx.font = '20px Courier New';
+    ctx.fillText('Tap = Restart from Checkpoint ' + String(checkpoint).padStart(5, '0'), W / 2, 280);
+    ctx.fillStyle = '#ffcc66';
+    ctx.font = '20px Courier New';
+    ctx.fillText('Double-tap = Restart from Beginning', W / 2, 315);
+  } else {
+    ctx.font = '20px Courier New';
+    ctx.fillStyle = '#ddd';
+    ctx.fillText('Tap to restart', W / 2, 280);
+  }
+  ctx.textAlign = 'left';
+}
+
+let lastSpawn = 0;
+let treeSpawnTimer = 0;
+function update() {
+  if (gameState !== 'playing') return;
+  frameCount++;
+  dino.vy += GRAVITY;
+  dino.y += dino.vy;
+  if (dino.y >= GROUND_Y - dino.h) {
+    dino.y = GROUND_Y - dino.h;
+    dino.vy = 0;
+    dino.onGround = true;
+  }
+  speed = INITIAL_SPEED + score * 0.0003;
+  if (speed > 12) speed = 12;
+  groundOffset += speed;
+  clouds.forEach(c => { c.x -= speed * 0.3; if (c.x < -80) { c.x = W + 80; c.y = 30 + Math.random() * 80; } });
+  treeSpawnTimer += speed;
+  if (treeSpawnTimer > 300 + Math.random() * 200) {
+    bgTrees.push({ x: W + 20, type: Math.floor(Math.random() * 7) });
+    treeSpawnTimer = 0;
+  }
+  for (let i = bgTrees.length - 1; i >= 0; i--) {
+    bgTrees[i].x -= speed * 0.5;
+    if (bgTrees[i].x < -50) bgTrees.splice(i, 1);
+  }
+  lastSpawn += speed;
+  const minGap = 550;
+  if (lastSpawn > minGap + Math.random() * 250) {
+    spawnObstacle();
+    lastSpawn = 0;
+  }
+  if (invincible) {
+    invincibleTimer--;
+    if (invincibleTimer <= 0) invincible = false;
+  }
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    obstacles[i].x -= speed;
+    if (obstacles[i].x < -100) { obstacles.splice(i, 1); continue; }
+    if (!invincible && checkCollision(obstacles[i])) { loseLife(); return; }
+  }
+  updateScore();
+}
+
+function drawStartScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(W / 2 - 260, 85, 520, 190);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 42px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('Hello Evanshi!', W / 2, 135);
+  ctx.fillStyle = '#66ff66';
+  ctx.font = 'bold 52px Courier New';
+  ctx.fillText('S T A R T', W / 2, 200);
+  ctx.fillStyle = '#ddd';
+  ctx.font = '22px Courier New';
+  ctx.fillText('Tap to play!', W / 2, 250);
+  ctx.textAlign = 'left';
+}
+
+function drawCharShadow() {
+  const d = dino;
+  const shadowY = GROUND_Y + 2;
+  const shadowW = d.w * 0.8;
+  const jumpH = GROUND_Y - d.h - d.y;
+  const alpha = Math.max(0.05, 0.3 - jumpH * 0.003);
+  const shrink = Math.max(0.4, 1 - jumpH * 0.005);
+  ctx.fillStyle = 'rgba(0,0,0,' + alpha + ')';
+  const sw = shadowW * shrink;
+  ctx.fillRect(d.x + (d.w - sw) / 2, shadowY, sw, 6);
+}
+
+function draw() {
+  drawSky();
+  drawMountains();
+  drawClouds();
+  bgTrees.forEach(t => drawBgTree(t));
+  drawGround();
+  obstacles.forEach(ob => {
+    if (ob.type === 'bird') drawBird(ob);
+    else if (ob.type === 'car') drawVehicle(ob);
+  });
+  drawCharShadow();
+  if (!invincible || Math.floor(frameCount / 4) % 2 === 0) drawDino();
+  if (gameState === 'playing' && !nightMode) {
+    const bName = BIOMES[currentBiome].name;
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText(bName, 12, 22);
+    ctx.restore();
+  }
+  if (gameState === 'idle') drawStartScreen();
+  if (gameState === 'over') drawGameOverScreen();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function restartFromCheckpoint() {
+  const savedCheckpoint = checkpoint;
+  speed = INITIAL_SPEED + (savedCheckpoint * 2) * 0.0003;
+  score = savedCheckpoint * 2;
+  frameCount = 0;
+  nightMode = (Math.floor(savedCheckpoint / 500) % 2 === 1);
+  groundOffset = 0;
+  lives = 3;
+  invincible = false;
+  invincibleTimer = 0;
+  checkpoint = savedCheckpoint;
+  currentBiome = Math.floor(savedCheckpoint / BIOME_CHANGE) % BIOMES.length;
+  biomeFrom = currentBiome; biomeTo = currentBiome; biomeBlend = 0; biomeTransitioning = false;
+  updateLivesDisplay();
+  updateCheckpointDisplay();
+  const sz = CHAR_SIZES[currentChar];
+  dino = { x: 80, y: GROUND_Y - sz.h, w: sz.w, h: sz.h, vy: 0, onGround: true, legFrame: 0 };
+  obstacles = [];
+  const sv = String(Math.floor(score / 2)).padStart(5, '0');
+  document.getElementById('score').textContent = sv;
+}
+
+function jump() {
+  if (timerLocked) return;
+  if (gameState === 'idle') {
+    initAudio();
+    resetGame();
+    gameState = 'playing';
+    startTimer();
+    if (soundOn) startBGM();
+    document.getElementById('charPicker').classList.add('hidden');
+  } else if (gameState === 'over') {
+    if (checkpoint > 0) {
+      restartFromCheckpoint();
+    } else {
+      resetGame();
+    }
+    gameState = 'playing';
+    startTimer();
+    if (soundOn) startBGM();
+  } else if (gameState === 'playing' && dino.onGround) {
+    dino.vy = JUMP_FORCE;
+    dino.onGround = false;
+    playJumpSound();
+  }
+}
+
+// Keyboard (for testing on desktop)
+document.addEventListener('keydown', e => {
+  if (document.activeElement === pwInput) return;
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (!spaceHeld) { spaceHeld = true; jump(); }
+  }
+  if (e.code === 'KeyR' && gameState === 'over' && !timerLocked) {
+    resetGame();
+    gameState = 'playing';
+    startTimer();
+    if (soundOn) startBGM();
+  }
+  if (e.code === 'ArrowDown' && gameState === 'playing') {
+    const sz = CHAR_SIZES[currentChar];
+    const duckH = Math.round(sz.h * 0.7);
+    dino.h = duckH; dino.y = GROUND_Y - duckH;
+  }
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') spaceHeld = false;
+  if (e.code === 'ArrowDown' && gameState === 'playing') {
+    const sz = CHAR_SIZES[currentChar];
+    dino.h = sz.h; dino.y = GROUND_Y - sz.h;
+  }
+});
+
+// Touch controls
+let lastTapTime = 0;
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touchY = e.touches[0].clientY - rect.top;
+  const relY = touchY / rect.height;
+
+  if (gameState === 'over' && checkpoint > 0) {
+    const now = Date.now();
+    if (now - lastTapTime < 400) {
+      resetGame();
+      gameState = 'playing';
+      startTimer();
+      if (soundOn) startBGM();
+      lastTapTime = 0;
+      return;
+    }
+    lastTapTime = now;
+  }
+
+  if (relY > 0.6) {
+    if (gameState === 'playing') {
+      const sz = CHAR_SIZES[currentChar];
+      const duckH = Math.round(sz.h * 0.7);
+      dino.h = duckH; dino.y = GROUND_Y - duckH;
+      setTimeout(() => {
+        if (gameState === 'playing') {
+          dino.h = sz.h; dino.y = GROUND_Y - sz.h;
+        }
+      }, 500);
+    }
+  } else {
+    jump();
+  }
+});
+
+// Fullscreen on first interaction
+let hasGoneFullscreen = false;
+function tryFullscreen() {
+  if (hasGoneFullscreen) return;
+  hasGoneFullscreen = true;
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {});
+  }
+}
+document.addEventListener('touchstart', tryFullscreen, { once: true });
+document.addEventListener('click', tryFullscreen, { once: true });
+
+// PWA install prompt
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').style.display = 'block';
+});
+document.getElementById('installBanner').addEventListener('click', () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  }
+  document.getElementById('installBanner').style.display = 'none';
+});
+document.getElementById('closeBanner').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('installBanner').style.display = 'none';
+});
+
+// Service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+// Show char picker when game is idle/over
+function showCharPickerIfIdle() {
+  if (gameState === 'idle' || gameState === 'over') {
+    document.getElementById('charPicker').classList.remove('hidden');
+  }
+}
+
+resetGame();
+updateTimerDisplay();
+draw();
+loop();
+</script>
+</body>
+</html>

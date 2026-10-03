@@ -3,11 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
 <title>Dino Runner - Evanshi</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #fff;
+  background: #1a1a1a;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -16,6 +21,12 @@ body {
   font-family: 'Courier New', monospace;
   overflow: hidden;
   touch-action: none;
+}
+.game-wrapper {
+  transform-origin: top center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 canvas {
   image-rendering: pixelated;
@@ -285,6 +296,7 @@ canvas {
 </style>
 </head>
 <body>
+<div class="game-wrapper" id="gameWrapper">
 <div class="tv-frame">
   <div class="tv-screen" id="tvScreen">
     <div class="score-board">
@@ -335,6 +347,7 @@ canvas {
   <button class="char-btn" data-char="spidey">Spidey</button>
   <button class="char-btn" data-char="nb21">21</button>
 </div>
+</div><!-- /game-wrapper -->
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -2125,7 +2138,42 @@ document.addEventListener('keyup', e => {
     dino.h = sz.h; dino.y = GROUND_Y - sz.h;
   }
 });
-canvas.addEventListener('touchstart', e => { e.preventDefault(); jump(); });
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touchY = e.touches[0].clientY - rect.top;
+  if (touchY > rect.height * 0.6) {
+    if (gameState === 'playing') {
+      const sz = CHAR_SIZES[currentChar];
+      const duckH = Math.round(sz.h * 0.7);
+      dino.h = duckH; dino.y = GROUND_Y - duckH;
+      setTimeout(() => {
+        if (gameState === 'playing') {
+          dino.h = sz.h; dino.y = GROUND_Y - sz.h;
+        }
+      }, 500);
+    }
+  } else {
+    jump();
+  }
+});
+
+const gameWrapper = document.getElementById('gameWrapper');
+function scaleGame() {
+  const fw = 1240, fh = 780;
+  const sx = window.innerWidth / fw;
+  const sy = window.innerHeight / fh;
+  const scale = Math.min(sx, sy, 1);
+  gameWrapper.style.transform = 'scale(' + scale + ')';
+  gameWrapper.style.marginTop = (scale < 1 ? '0' : '') + 'px';
+}
+window.addEventListener('resize', scaleGame);
+window.addEventListener('orientationchange', () => setTimeout(scaleGame, 100));
+scaleGame();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
 
 resetGame();
 draw();

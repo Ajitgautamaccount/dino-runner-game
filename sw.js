@@ -1,4 +1,4 @@
-const CACHE = 'dino-runner-v1';
+const CACHE = 'dino-runner-v2';
 const ASSETS = [
   '/dino-runner-game/',
   '/dino-runner-game/index.html',
